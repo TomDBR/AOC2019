@@ -50,7 +50,7 @@ int getValForParamMode(int argNr, int instructionPtr) {
 	return paramMode;
 }
 
-int doFunction(int *array) {
+int doFunction(int *array, int verbosity) {
 	int instructionPtr = 0; // the value in the array we are currently at
 	int instruction = 0; // the instruction we read in the array, at position [instructionPtr]
 	int opcode = 0; // opcode is stored in [instruction]
@@ -65,31 +65,61 @@ int doFunction(int *array) {
 		int arg1 = paramArg1 ? instructionPtr+1 : array[instructionPtr+1];
 		int arg2 = paramArg2 ? instructionPtr+2 : array[instructionPtr+2];
 		int arg3 = paramArg3 ? instructionPtr+3 : array[instructionPtr+3]; // mainly used for location
-		//printf("modes -> param1: %d, param2: %d, param3: %d\t", paramArg1, paramArg2, paramArg3);
+		if (verbosity) printf("modes -> param1: %d, param2: %d, param3: %d\t", paramArg1, paramArg2, paramArg3);
 		switch (opcode) {
 			case 1 :
-				//printf("case 1:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
+				if (verbosity) printf("case 1:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
 				array[arg3] = array[arg1] + array[arg2];
 				instructionPtr+=4;
 				break;
 			case 2 :
-				//printf("case 2:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
+				if (verbosity) printf("case 2:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
 				array[arg3] = array[arg1] * array[arg2];
 				instructionPtr+=4;
 				break;
 			case 3 :
-				//printf("\ncase 3:\tinstruction: %d,%d\n", instruction, arg1);
+				if (verbosity) printf("\ncase 3:\tinstruction: %d,%d\n", instruction, arg1);
 				printf("opcode 3 expects numeric input: ");
 				array[arg1] = receiveNumber();
 				instructionPtr+=2;
 				break;
 			case 4 :
-				//printf("case 4:\tinstruction: %d,%d\n", instruction, arg1);
+				if (verbosity) printf("case 4:\tinstruction: %d,%d\n", instruction, arg1);
 				printf("opcode 4 output: %d\n", array[arg1]);
 				instructionPtr+=2;
 				break;
+			case 5 : // jump if true
+				if (verbosity) printf("case 5:\tinstruction: %d,%d,%d\n", instruction, arg1, arg2);
+				if (array[arg1] != 0)
+					instructionPtr = array[arg2];
+				else
+					instructionPtr+=3;
+				break;
+			case 6 : // jump if false
+				if (verbosity) printf("case 6:\tinstruction: %d,%d,%d\n", instruction, arg1, arg2);
+				if (array[arg1] == 0)
+					instructionPtr = array[arg2];
+				else
+					instructionPtr+=3;
+				break;
+			case 7 : // less than
+				if (verbosity) printf("case 7:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
+				if (array[arg1] < array[arg2]) 
+					array[arg3] = 1;
+				else
+					array[arg3] = 0;
+				instructionPtr+=4;
+				break;
+			case 8 : // equals
+				if (verbosity) printf("case 8:\tinstruction: %d,%d,%d,%d\n", instruction, arg1, arg2, arg3);
+				if (array[arg1] == array[arg2]) 
+					array[arg3] = 1;
+				else
+					array[arg3] = 0;
+				instructionPtr+=4;
+				break;
 			case 99 : 
-				//printf("case 99: halting program: %d\n", instruction);
+				if (verbosity) printf("case 99: halting program: %d\n", instruction);
 				instructionPtr+=4;
 				//printf("\n");
 				break;
@@ -104,35 +134,20 @@ int doFunction(int *array) {
 int main(int argc, char* argv[]) {
 	int magicNumber = 19690720;
 	int returnVal = 0;
-	int arrayInMain[] = { 
-	#include "./02_input.txt"
-	};
-
-	arrayInMain[1] = 12;
-	arrayInMain[2] = 2;
-	int *arrPtr = arrayInMain;
-	printf("The return code is: %d\n", doFunction(arrPtr));
-
-	for(int i = 0; i < 100; i++) {
-		for(int x = 0; x < 100; x++) {
-			int array[] = { 
-			#include "./02_input.txt"
-			};
-			int *arrPtr = array;
-			array[1] = i;
-			array[2] = x;
-			if ((returnVal = doFunction(arrPtr)) == magicNumber) {
-			      printf("Position 1: %d,\tposition 2: %d\n", array[1], array[2]);
-			      x = 100; i = 100;
-			}
-		}
-	}
+	int *arrPtr;
 
 	int newArray[] = { 
 	#include "./05_input.txt"
 	};
 	arrPtr = newArray;
-	doFunction(arrPtr);
+	doFunction(arrPtr, 0);
+
+	int newNewArray[] = { 
+	#include "./05_input.txt"
+	};
+	arrPtr = newNewArray;
+	doFunction(arrPtr, 0);
+
 	return 0;
 }
 
