@@ -59,10 +59,10 @@ int getOpcode(int instructionPtr)
 {
 	int length = getAmountOfChars(instructionPtr);
 	if (length == 1 || length == 2) return instructionPtr;
-	char tmpStr[length];
+	char tmpStr[length], *ptr;
 	snprintf(tmpStr, length+1, "%d", instructionPtr);
-	char *ptr;
-	if(tmpStr[length-2] == '0') ptr = &tmpStr[length-1];
+	if(tmpStr[length-2] == '0') 
+		ptr = &tmpStr[length-1];
 	else ptr = &tmpStr[length-2];
 	return(atoi(ptr));
 }
@@ -73,10 +73,11 @@ int getParameterMode(int argNr, int instruction)
 	char tmp[len]; snprintf(tmp, len+1, "%d", instruction);
 	int posInString = len - opcodeSize - argNr;
 	if (posInString < 0)  return 0;
-	return (int) tmp[posInString] - 48;
+	return (int) tmp[posInString] - 48; // convert char back to int
 }
 
-int getArgument(int instructionPointer, int parameterMode, int relativeBase) {
+int getArgument(int instructionPointer, int parameterMode, int relativeBase) 
+{
 	switch (parameterMode) {
 		case 0: // POSITION MODE
 			if (array[instructionPointer] > arraySize) {
@@ -121,14 +122,12 @@ long doFunction()
 				instructionPtr+=4;
 				break;
 			case 3 :
-				if (verbosity) printf("\ncase 3:\tinstruction: %d,%d\n", instruction, arg1);
-				if (verbosity) printf("opcode 3 expects numeric input: \n");
+				if (verbosity) printf("\ncase 3:\tinstruction: %d,%d\nopcode 3 expects numeric input: \n", instruction, arg1);
 				array[arg1] = receiveNumber();
 				instructionPtr+=2;
 				break;
 			case 4 :
-				if (verbosity) printf("case 4:\tinstruction: %d,%d\n", instruction, arg1);
-				if (verbosity) printf("opcode 4 output: %li\n", array[arg1]);
+				if (verbosity) printf("case 4:\tinstruction: %d,%d\nopcode 4 output: %li\n", instruction, arg1, array[arg1]);
 				output = array[arg1];
 				instructionPtr+=2;
 				break;
@@ -167,7 +166,6 @@ long doFunction()
 				relativeBase += array[arg1];
 				instructionPtr+=2;
 				break;
-
 			case 99 : 
 				if (verbosity) printf("case 99: halting program: %d\n", instruction);
 				instructionPtr+=4;
