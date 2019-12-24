@@ -1,170 +1,213 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "util.h"
 
-int getAmountOfChars(int input) {
-	char tmpstr[10];
-	sprintf(tmpstr, "%d", input);
-	char *ptr = tmpstr;
-	int count = 0;
-	while (*ptr) {
-		if(*ptr != '\0') count++;
-		ptr++;
+#define verbosity 0
+
+static struct wire *wires[2];
+
+struct wire {
+	struct coord **coordinates;
+	struct coord **intersections;
+	int amtCoords;
+	int amtIntersections;
+};
+
+struct coord {
+	int X;
+	int Y;
+};
+
+struct line {
+	struct coord *p1;
+	struct coord *p2;
+};
+
+void cleanup() {
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < wires[i]->amtCoords; j++) {
+			free(wires[i]->coordinates[j]);
+		}
+		free(wires[i]->coordinates);
+		for (int j = 0; j < wires[i]->amtIntersections; j++) {
+			free(wires[i]->intersections[j]);
+		}
+		free(wires[i]->intersections);
+		free(wires[i]);
 	}
-	return count;
+}
+struct wire *createWire() 
+{
+	struct wire *wire = malloc(sizeof(struct wire));
+	wire->coordinates = NULL;
+	wire->intersections = NULL;
+	wire->amtCoords = 0;
+	wire->amtIntersections = 0;
+	return wire;
 }
 
-int abs(int arg) {
-	return arg <= 0 ? -arg : arg;
+struct line *createLine(struct coord *c1, struct coord *c2) {
+	struct line *tmp = malloc(sizeof(struct line));
+	tmp->p1 = c1;
+	tmp->p2 = c2;
+	return tmp;
 }
 
-int between(int arg, int outer1, int outer2) {
-	if ((outer1 < arg && arg < outer2) || (outer2 < arg && arg < outer1)) 
+struct coord *createCoord(int x, int y) 
+{
+	struct coord *tmp = calloc(1, sizeof(struct coord));
+	tmp->X = x;
+	tmp->Y = y;
+	return tmp;
+}
+
+void addCoord(struct wire *wire, struct coord *coord) 
+{
+	wire->coordinates = (struct coord **) realloc(wire->coordinates, (wire->amtCoords+1) * sizeof(struct coord *));
+	wire->coordinates[wire->amtCoords] = coord;
+	wire->amtCoords += 1;
+}
+
+void addIntersection(struct wire *wire, struct coord *coord) 
+{
+	wire->intersections = (struct coord **) realloc(wire->intersections, (wire->amtIntersections+1) * sizeof(struct coord *));
+	wire->intersections[wire->amtIntersections] = coord;
+	wire->amtIntersections += 1;
+}
+
+int sameAxis(struct line *line, char axis) 
+{
+	switch (axis) {
+		case 'x' :
+			return line->p1->X == line->p2->X;
+		case 'y' :
+			return line->p1->Y == line->p2->Y;
+	}
+	return 0;
+}
+
+int parallel(struct line *line1, struct line *line2) {
+	if((sameAxis(line1, 'x') && sameAxis(line2, 'x')) || (sameAxis(line1, 'y') && sameAxis(line2, 'y'))) {
 		return 1;
-	else 
-		return 0;
-}
-
-int **findIntersections(int **carrier[2]) {
-	int **intersections = malloc(2 * sizeof(int*));
-	intersections[0] = malloc(100 * sizeof(int));
-	memset(intersections[0], 0, 100 * sizeof(int));
-	intersections[1] = malloc(100 * sizeof(int));
-	memset(intersections[1], 0, 100 * sizeof(int));
-	int iter = 0;
-
-	int **line1 = carrier[0];
-	int **line2 = carrier[1];
-	for(int i = 0; i <= 299; i++) {
-		int xi1 = line1[0][i];
-		int yi1 = line1[1][i];
-		int xi2 = line1[0][i+1];
-		int yi2 = line1[1][i+1];
-		//printf("i %d:\t%d.%d\t -> \t%d.%d\n", i, xi1, yi1, xi2, yi2);
-		for(int j = 0; j <= 299; j++) {
-			int xj1 = line2[0][j];
-			int yj1 = line2[1][j];
-			int xj2 = line2[0][j+1];
-			int yj2 = line2[1][j+1];
-			//printf("j %d:\t%d.%d\t -> \t%d.%d\n", j, xj1, yj1, xj2, yj2);
-
-			int match1 = 0;
-			int match2 = 0;
-			if((xi1 == xi2 && xj1 == xj2) || (yi1 == yi2 && yj1 == yj2)) {
-				// do nothing cuz perpendiclar??
-			} else {
-				if (xi1 == xi2) {
-					match1 = xi1;
-					match2 = yj1;
-					if (between(match1, xj1, xj2) && between(match2, yi1, yi2)) {
-						printf("match! (%d,%d) (%d,%d) -> (%d,%d)\t (%d,%d) -> (%d,%d)\n", match1, match2, xi1, yi1, xi2, yi2, xj1, yj1, xj2, yj2);
-						intersections[0][iter] = match1;
-						intersections[1][iter] = match2;
-						iter++;
-					}
-				} 
-				else if ( yi1 == yi2 ) { 
-					match1 = yi1;
-					match2 = xj1;
-					if (between(match1, yj1, yj2) && between(match2, xi1, xi2)) {
-						printf("match! (%d,%d) (%d,%d) -> (%d,%d)\t (%d,%d) -> (%d,%d)\n", match1, match2, xi1, yi1, xi2, yi2, xj1, yj1, xj2, yj2);
-						intersections[0][iter] = match2;
-						intersections[1][iter] = match1;
-						iter++;
-					}
-				}
-			}
-		}
 	}
-	return intersections;
+	else return 0;
 }
 
+void loadData() 
+{
+	char inputLine[1500], *inPtr = inputLine;
+	memset(inputLine, '\0', 1500);
+	FILE *ifp;
+	int lineCount = 0;
 
-int main(int argc, char* argv[]) {
-	char inputLine[1500];
-	char sep = ',';
-	int **carrier[2];
-	int carrierPos = 0;
-
-	FILE *ifp = fopen("./03_input.txt", "r");
-	if (ifp == NULL) exit(1);
-
-	while(!feof(ifp)) {
-		fscanf(ifp, "%s\n,", inputLine);
-		int count = 0; // amount of commas
-		char *tmp = inputLine;
-		while (*tmp) {
-			if (sep == *tmp) {
-				count++;
-			}
-			tmp++;
-		}
-		count++;
-
-		int **array = malloc(2 * sizeof(int*)); // x = array[0], y = array[1]
-		array[0] = malloc(count * sizeof(int));
-		memset(array[0], 0, count * sizeof(int));
-		array[1] = malloc(count * sizeof(int));
-		memset(array[1], 0, count * sizeof(int));
-
-		int i=0, increment = 0;
-		char direction;
-		char *inPtr = inputLine;
+	if ((ifp = fopen("./03_input.txt", "r")) == NULL) exit(1);
+	while(fscanf(ifp, "%s\n,", inputLine)) {
+		struct wire *wire = createWire();
+		int increment = 0;
+		char direction, *inPtr = inputLine;
+		addCoord(wire, createCoord(0,0));
 		while(sscanf(inPtr, "%c%d,", &direction, &increment) == 2) {
-			int lastPosition = i == 0 ? 0 : i-1;
-			int YPosition = array[1][lastPosition];
-			int XPosition = array[0][lastPosition];
-			printf("lastPos: %d,\t dir: %c, incr: %d,\t ypos: %d\t xpos: %d\n", lastPosition, direction, increment,YPosition, XPosition);
+			int XPosition = (wire->amtCoords) ? wire->coordinates[wire->amtCoords-1]->X : 0;
+			int YPosition = (wire->amtCoords) ? wire->coordinates[wire->amtCoords-1]->Y : 0;
 			switch(direction) {
 				case 'U' :
-					array[1][i] = YPosition + increment;
-					array[0][i] = XPosition;
+					addCoord(wire, createCoord(XPosition, YPosition + increment));
 					break;
 				case 'D' :
-					array[1][i] = YPosition - increment;
-					array[0][i] = XPosition;
+					addCoord(wire, createCoord(XPosition, YPosition - increment));
 					break;
 				case 'R' :
-					array[0][i] = XPosition + increment;
-					array[1][i] = YPosition;
+					addCoord(wire, createCoord(XPosition + increment, YPosition));
 					break;
 				case 'L' :
-					array[0][i] = XPosition - increment;
-					array[1][i] = YPosition;
+					addCoord(wire, createCoord(XPosition - increment, YPosition));
 					break;
 				default :
 					fprintf(stderr, "invalid direction %c!\n", direction);
 
 			}
-			printf("Array[0][%d]:Array[1][%d] = %d:%d\n", i, i, array[0][i], array[1][i]);
 			inPtr += getAmountOfChars(increment) + 2;
-			if(i == count) break; // sscanf messes up at the end of the line sometimes ;v
-			i++;
 		}
-		carrier[carrierPos] = array;
-		printf("carrierpos = %d\n", carrierPos);
-		carrierPos++;
+		wires[lineCount] = wire;
+		lineCount++;
+		if (feof(ifp)) break;
 	}
-
-	int **intersections = findIntersections(carrier);
-	int shortestDistance = abs(intersections[0][0]) + abs(intersections[1][0]);
-	for (int i = 0; i < 100; i++) {
-		int distance = abs(intersections[0][i]) + abs(intersections[1][i]);
-		if (distance < shortestDistance && distance != 0)
-			shortestDistance = distance;
-	}
-
-	printf("shortest distance: %d\n", shortestDistance);
 	fclose(ifp);
 
-	free(intersections[0]);
-	free(intersections[1]);
-	free(intersections);
-	free(carrier[0][0]);
-	free(carrier[0][1]);
-	free(carrier[0]);
-	free(carrier[1][0]);
-	free(carrier[1][1]);
-	free(carrier[1]);
+}
 
+void findIntersections() 
+{
+	for (int i = 0; i < wires[0]->amtCoords-1; i++) { // w1c1 -> wire1 coord 1
+		struct coord *w1c1 = wires[0]->coordinates[i], *w1c2 = wires[0]->coordinates[i+1];
+		struct line *line1 = createLine(w1c1, w1c2);
+		for (int j = 0; j < wires[1]->amtCoords-1; j++) { 
+			struct coord *w2c1 = wires[1]->coordinates[j], *w2c2 = wires[1]->coordinates[j+1];
+			struct line *line2 = createLine(w2c1, w2c2);
+			if (!parallel(line1, line2)) {
+				if (sameAxis(line1, 'x') && sameAxis(line2, 'y')) {
+					if (between(line1->p1->X, line2->p1->X, line2->p2->X) && between(line2->p1->Y, line1->p1->Y, line1->p2->Y)) {
+						addIntersection(wires[0], createCoord(line1->p1->X, line2->p1->Y));
+						addIntersection(wires[1], createCoord(line1->p1->X, line2->p1->Y));
+					}
+				} else if (sameAxis(line1, 'y') && sameAxis(line2, 'x')) {
+					if (between(line2->p1->X, line1->p1->X, line1->p2->X) && between(line1->p1->Y, line2->p1->Y, line2->p2->Y)) {
+						addIntersection(wires[0], createCoord(line2->p1->X, line1->p1->Y));
+						addIntersection(wires[1], createCoord(line2->p1->X, line1->p1->Y));
+					}
+				}
+			}
+			free(line2);
+		}
+		free(line1);
+	}
+}
+
+int findFewestSteps() {
+	int fewestSteps = 1000000;
+	for (int i = 0; i < wires[0]->amtIntersections; i++) {
+		struct coord *intersection = wires[0]->intersections[i];
+		if (verbosity) printf("checking intersection: (%d,%d)..\n", intersection->X, intersection->Y);
+		int steps = 0;
+		for (int x = 0; x < 2; x++) {
+			struct coord *start = wires[x]->coordinates[0];
+			for (int y = 1; y < wires[x]->amtCoords; y++) {
+				struct coord *cur = wires[x]->coordinates[y];
+				struct line *tmp = createLine(start, cur);
+				if (sameAxis(tmp, 'x')) {
+					if (between(intersection->Y, start->Y, cur->Y) && intersection->X == tmp->p1->X) { // intersection reached
+						steps += abs(intersection->Y - start->Y); 
+						free(tmp); break;
+					}
+					steps += abs((cur->Y - (start->Y))); 
+				} else if (sameAxis(tmp, 'y')) {
+					if (between(intersection->X, start->X, cur->X) && intersection->Y == tmp->p1->Y) { // intersection reached
+						steps += abs((intersection->X - (start->X))); 
+						free(tmp); break;
+					}
+					steps += abs((cur->X - (start->X))); 
+				}
+				start = cur;
+				free(tmp);
+			}
+		}
+		if ((steps) < fewestSteps) fewestSteps = steps;
+	}
+	return fewestSteps;
+}
+
+int main(int argc, char* argv[]) {
+	loadData();
+	findIntersections();
+
+	int shortestDistance = abs(wires[0]->intersections[0]->X) + abs(wires[0]->intersections[0]->Y);
+	for (int i = 0; i < wires[0]->amtIntersections; i++) {
+		int distance = abs(wires[0]->intersections[i]->X) + abs(wires[0]->intersections[i]->Y);
+		if (distance < shortestDistance && distance != 0) shortestDistance = distance;
+	}
+	printf("shortest distance: %d\n", shortestDistance);
+	printf("fewest steps: %d\n", findFewestSteps());
+	cleanup();
+	return 0;
 }
