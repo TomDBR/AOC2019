@@ -4,14 +4,12 @@
 #include <unistd.h>
 #include <signal.h>
 
-static int pid;
 static int engNo;
 static char *fileName;
 
 int receiveNumber() 
 {
 	int number = -1;
-	char string[20];
 	int retVal = 0 ;
 	while(retVal != 1) {
 		retVal = fscanf(stdin, "%d", &number);
@@ -155,7 +153,7 @@ int doFunction(int *array, int verbosity)
 				if (verbosity) printf("case 99: halting program: %d\n", instruction);
 				if (engNo != -1) fprintf(stderr, "ENGINE NO: %d\t%d\n", engNo, output);
 
-				printf("%d\n", output);
+				//printf("%d\n", output);
 				fprintf(stderr, "%d\n", output);
 				fflush(stdout);
 				instructionPtr+=4;
@@ -170,7 +168,6 @@ int doFunction(int *array, int verbosity)
 
 int main(int argc, char* argv[])
 {
-	signal(SIGPIPE, SIG_IGN);
 	if (argc != 3) {
 		fprintf(stderr, "Error: 2 arguments expected!\n");
 		fprintf(stderr, "Usage: intCodeComputer {engineNumber} {verbosity}\n");
@@ -178,14 +175,13 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "{verbosity} : [0,1]\n");
 		exit(1);
 	}
-	pid = getpid();
 	fileName = "./07_input.txt";
 	engNo = atoi(argv[1]);
 	int verbosity = atoi(argv[2]);
 
 	int *array = loadData();
-	int output = doFunction(array, verbosity);
+	printf("%d\n", doFunction(array, verbosity));
 
 	free(array);
-	return output;
+	return 0;
 }
