@@ -47,7 +47,8 @@ struct wire *createWire()
 	return wire;
 }
 
-struct line *createLine(struct coord *c1, struct coord *c2) {
+struct line *createLine(struct coord *c1, struct coord *c2)
+{
 	struct line *tmp = malloc(sizeof(struct line));
 	tmp->p1 = c1;
 	tmp->p2 = c2;
@@ -146,16 +147,13 @@ void findIntersections()
 			struct coord *w2c1 = wires[1]->coordinates[j], *w2c2 = wires[1]->coordinates[j+1];
 			struct line *line2 = createLine(w2c1, w2c2);
 			if (!parallel(line1, line2)) {
-				if (sameAxis(line1, 'x') && sameAxis(line2, 'y')) {
-					if (between(line1->p1->X, line2->p1->X, line2->p2->X) && between(line2->p1->Y, line1->p1->Y, line1->p2->Y)) {
-						addIntersection(wires[0], createCoord(line1->p1->X, line2->p1->Y));
-						addIntersection(wires[1], createCoord(line1->p1->X, line2->p1->Y));
-					}
-				} else if (sameAxis(line1, 'y') && sameAxis(line2, 'x')) {
-					if (between(line2->p1->X, line1->p1->X, line1->p2->X) && between(line1->p1->Y, line2->p1->Y, line2->p2->Y)) {
-						addIntersection(wires[0], createCoord(line2->p1->X, line1->p1->Y));
-						addIntersection(wires[1], createCoord(line2->p1->X, line1->p1->Y));
-					}
+				if (between(line1->p1->X, line2->p1->X, line2->p2->X) && between(line2->p1->Y, line1->p1->Y, line1->p2->Y)) {
+					addIntersection(wires[0], createCoord(line1->p1->X, line2->p1->Y));
+					addIntersection(wires[1], createCoord(line1->p1->X, line2->p1->Y));
+				}
+				else if (between(line2->p1->X, line1->p1->X, line1->p2->X) && between(line1->p1->Y, line2->p1->Y, line2->p2->Y)) {
+					addIntersection(wires[0], createCoord(line2->p1->X, line1->p1->Y));
+					addIntersection(wires[1], createCoord(line2->p1->X, line1->p1->Y));
 				}
 			}
 			free(line2);

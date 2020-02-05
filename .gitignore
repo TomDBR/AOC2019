@@ -1,2 +1,5 @@
+*/a.out
+*/*.o
+*/*.bin
 *.bin
-cscope.out
+*/cscope.out

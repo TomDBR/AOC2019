@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 int main(int argc, char* argv[]) {
-	char *input = "/home/Tom/Dev/AOC2019/01_input.txt";
+	char *input = "./01_input.txt";
 	FILE *ifp;
 	char curLine[20];
 	int total = 0;
