@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "{verbosity} : [0,1]\n");
 		exit(1);
 	}
-	fileName = "./07_input.txt";
+	fileName = "../07_input.txt";
 	engNo = atoi(argv[1]);
 	int verbosity = atoi(argv[2]);
 
