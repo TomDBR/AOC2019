@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
-#include "intcode.h"
-#include "shell_cmd.h"
 #include <unistd.h>
-#include "util.h"
+#include "../UTILS/shell_cmd.h"
+#include "../UTILS/util.h"
 
 #define UP 	(1)
 #define DOWN 	(2)
@@ -14,7 +13,7 @@
 #define BLACK   (0)
 #define WHITE   (1)
 
-int verbosity = 0;
+static int verbosity = 0;
 int map_size = 0;
 struct coord **map = NULL;
 
@@ -87,14 +86,16 @@ struct coord *getCoord(int x, int y)
 	return NULL;
 }
 
-void addToMap(struct coord *coord) {
+void addToMap(struct coord *coord) 
+{
 		map_size += 1;
 		map = realloc(map, map_size * sizeof(struct coord *));
 		map[map_size-1] = coord;
 		if (verbosity) printf("adding coord (%p) to map, size is now %d\n", (void *) coord, map_size);
 }
 
-struct coord *createCoord(int x, int y, int color) {
+struct coord *createCoord(int x, int y, int color) 
+{
 	struct coord *coord = getCoord(x, y);
 	if (coord == NULL) {
 		coord = malloc(sizeof(struct coord));
@@ -107,16 +108,17 @@ struct coord *createCoord(int x, int y, int color) {
 	return coord;
 }
 
-void checkBoundaries(b_t *b, int x, int y) {
+void checkBoundaries(b_t *b, int x, int y) 
+{
 	if (x < b->x_min) b->x_min = x;
 	else if (x > b->x_max) b->x_max = x;
 	if (y < b->y_min) b->y_min = y;
 	else if (y > b->y_max) b->y_max = y;
 }
 
-void runProg(b_t *b, int startColor) {
-	//char *cmd[] = { "/bin/sh", "-c", "./day9.lua input.txt", NULL};
-	char *cmd[] = { "./intcode", "input.txt", NULL};
+void runProg(b_t *b, int startColor) 
+{
+	char *cmd[] = { "intcode", "./input.txt", "-1", "0", NULL};
 	process_t intcodePrg = process(cmd);
 	FILE *f = fdopen(intcodePrg.fd_write, "r");
 	if (!f) die("failed to open fd\n");
@@ -137,10 +139,11 @@ void runProg(b_t *b, int startColor) {
 	}
 	wait(NULL);
 }
-void cleanup() {
-	for (int i = 0; i < map_size; i++) {
+
+void cleanup() 
+{
+	for (int i = 0; i < map_size; i++)
 		free(map[i]);
-	}
 	free(map);
 	map = NULL;
 	map_size = 0;
@@ -165,6 +168,7 @@ int main()
 		}
 		printf("\n");
 	}
+	if (verbosity) printf("X: %d->%d\tY: %d->%d\n", b.x_min, b.x_max, b.y_min, b.y_max);
 	cleanup();
 	return 0;
 }
