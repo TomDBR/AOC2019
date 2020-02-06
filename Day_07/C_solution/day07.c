@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "shell_cmd.h"
-#include "util.h"
+#include "../../UTILS/shell_cmd.h"
+#include "../../UTILS/util.h"
 
 int receive_engine_code(FILE *f)
 {
@@ -23,7 +23,7 @@ void setup_engines(process_t *processes, int *charges, FILE *files[], int amt)
 	char engNo[2];
 	for (int i = 0; i < amt; i++) {
 		snprintf(engNo, 2, "%d", i+1);
-		char *cmd[] = { "./intcode", engNo, "0", NULL};
+		char *cmd[] = { "intcode", "../07_input.txt", engNo, "0", NULL};
 		processes[i] = process(cmd);
 		dprintf(processes[i].fd_read, "%d\n", charges[i]);
 		files[i] = fdopen(processes[i].fd_write, "r");

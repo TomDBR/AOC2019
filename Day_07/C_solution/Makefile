@@ -5,15 +5,13 @@ ifeq ($(DEBUG),1)
 	CFLAGS+=-DDEBUG -g
 endif
 
-SRC_INTCODE	:= intcode.c
-OBJ_INTCODE 	:= $(SRC_INTCODE:.c=.o)
-
-SRC_DAY07	:= day07.c shell_cmd.c util.c 
+SRC_DAY07	:= day07.c 
+SRC_DAY07	+= $(wildcard ../../UTILS/*.c)
 OBJ_DAY07 	:= $(SRC_DAY07:.c=.o)
 
 VALG 		:= $(wildcard vgcore.*)
 
-all: 		intcode day07
+all: 		day07
 
 $(OBJ_DAY07): 	Makefile 
 
@@ -22,4 +20,4 @@ day07: 		$(OBJ_DAY07)
 
 
 clean: 	
-	rm -f day07 intcode $(OBJ_INTCODE) $(OBJ_DAY07) $(VALG)
+	rm -f day07 $(OBJ_DAY07) $(VALG)
