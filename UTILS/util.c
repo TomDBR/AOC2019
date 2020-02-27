@@ -30,3 +30,17 @@ void die(char *msg) {
 	fprintf(stderr, "%s\n", msg);
 	exit(1);
 }
+
+int receiveNumber() 
+{
+	int number = -1;
+	int retVal = 0 ;
+	while(retVal != 1) {
+		retVal = fscanf(stdin, "%d", &number);
+		if (retVal == 0) {
+			fprintf(stderr, "Input needs to be numeric!\n");
+			while(fgetc(stdin) != '\n');
+		}
+	}
+	return number;
+}

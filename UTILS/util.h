@@ -3,5 +3,6 @@
 int abs (int a);
 int between (int a, int one, int two);
 int getAmountOfChars(int input);
+int receiveNumber();
 void die(char *msg);
 #endif
