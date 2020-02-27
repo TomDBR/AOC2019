@@ -1,6 +1,6 @@
 CC		:= gcc
 CFLAGS		:= -Wall -Wextra -Wpedantic 
-LIBS 		:= -lm
+LIBS 		:= -lpthread -lm $(shell pkg-config --libs-only-l ncurses)
 
 ifeq ($(DEBUG),1)
 	CFLAGS+=-DDEBUG -g
