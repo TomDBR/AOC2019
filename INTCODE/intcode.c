@@ -75,15 +75,22 @@ int getParameterMode(int argNr, int instruction)
 
 long getArgument(int instructionPointer, int parameterMode, int relativeBase) 
 {
+	if (verbosity) fprintf(stderr, "IP: %d, paramMode: %d, relativeBase: %d.. arraySize: %ld\n", instructionPointer, parameterMode, relativeBase, arraySize);
+	if (instructionPointer > arraySize) {
+		long tmp = arraySize;
+		arraySize = instructionPointer+1;
+		array = realloc(array, arraySize * sizeof(long));
+		long *ptr = &array[tmp]; memset(ptr, 0, (arraySize-tmp-1) * sizeof(long));
+	}
+	if (array[instructionPointer] > arraySize) {
+		long tmp = arraySize;
+		arraySize = array[instructionPointer]+1;
+		array = realloc(array, arraySize * sizeof(long));
+		long *ptr = &array[tmp]; memset(ptr, 0, (arraySize-tmp-1) * sizeof(long));
+	}
+
 	switch (parameterMode) {
 		case 0: // POSITION MODE
-			if (instructionPointer > arraySize) return -1;
-			if (array[instructionPointer] > arraySize) {
-				long tmp = arraySize;
-				arraySize = array[instructionPointer]+1;
-				array = realloc(array, arraySize * sizeof(long));
-				long *ptr = &array[tmp]; memset(ptr, 0, (arraySize-tmp-1) * sizeof(long));
-			}
 			return array[instructionPointer];
 		case 1: // IMMEDIATE MODE
 			return instructionPointer;
@@ -130,7 +137,7 @@ long doFunction()
 				instructionPtr+=4;
 				break;
 			case 3 :
-				if (engNo != -1) fprintf(stderr, "%d: ENGINE %d: ", getpid(), engNo);
+				if (verbosity && engNo != -1) fprintf(stderr, "%d: ENGINE %d: ", getpid(), engNo);
 				if (verbosity) fprintf(stderr, "\ncase 3:\tinstruction: %d,%ld\nopcode 3 expects numeric input: \n", instruction, arg1);
 				array[arg1] = receiveNumber();
 				instructionPtr+=2;
