@@ -7,6 +7,7 @@
 #include "../UTILS/shell_cmd.h"
 #include "../UTILS/util.h"
 
+int verbosity = 0;
 struct output **tiles = NULL;
 int tiles_size = 0;
 char *cmd[] = { "intcode", "./input.txt", "-1", "0", NULL };
@@ -45,7 +46,8 @@ struct output *addTile(int x, int y, int type)
 	return tiles[tiles_size -1];
 }
 
-char get_block_for_type(int type) {
+char get_block_for_type(int type) 
+{
 	char block;
 	switch (type) {
 		case 0: // empty tile
@@ -64,6 +66,25 @@ char get_block_for_type(int type) {
 int isScore(struct output *s)
 {
 	return (s->x == -1 && s->y == 0) ? 1 : 0;
+}
+
+void redraw_screen() 
+{
+	clear();
+	int max_y = 0, max_x = 0;
+	getmaxyx(stdscr, max_y, max_x);
+	int x_start = ( max_x / 2 ) - ( width / 2 );
+	int y_start = ( max_y / 2 ) - ( height / 2 );
+
+	noecho();
+	curs_set(FALSE); // hide cursor
+	nocbreak();
+	for (int i = 0; i < tiles_size; i++) {
+		int x = tiles[i]->x, y = tiles[i]->y, type = tiles[i]->type;
+		char block = get_block_for_type(type);
+		mvprintw(y_start + y, x_start + x, &block);
+		refresh();
+	}
 }
 
 void *update_screen(void *f) {
@@ -100,12 +121,11 @@ int main()
 		die("Failed to open file descriptor!\n");
 
 	while (fscanf(f, "%d\n%d\n%d", &x, &y, &type) == 3) {
-		//printf("x: %d, y: %d, type: %d\n", x, y, type);
+		if (verbosity) printf("x: %d, y: %d, type: %d\n", x, y, type);
 		if (x == -1 && y == 0) // when this happens, the program is done drawing and starts accepting input, initial score 0
 			break;
 		addTile(x, y, type);
 	}
-	//printf("char was '%c'\n", fgetc(f));
 
 	// check amount of block tiles
 	int count = 0;
@@ -127,12 +147,7 @@ int main()
 	int y_start = ( max_y / 2 ) - ( height / 2 );
 
 	// initial layout
-	for (int i = 0; i < tiles_size; i++) {
-		int x = tiles[i]->x, y = tiles[i]->y, type = tiles[i]->type;
-		char block = get_block_for_type(type);
-		mvprintw(y_start + y, x_start + x, &block);
-	}
-	refresh(); // redraw screen!
+	redraw_screen();
 
 	//pthread_t inc_x_thread;
 	//if(pthread_create(&inc_x_thread, NULL, update_screen, f)) die("error creating thread!");
@@ -141,7 +156,6 @@ int main()
 	// start game loop
 	nodelay(stdscr, TRUE); // makes getch non blocking, returns ERR if no key pressed
 	int exit_loop = 0; // set to 1 when q is pressed to exit loop
-	//int score = 0;
 	while (1) {
 		if (exit_loop) break;
 		int key = getch(), res;
@@ -166,12 +180,13 @@ int main()
 			struct output *s = addTile(x, y, type);
 			if (isScore(s)) {
 				score = s->type;
-			} else {
-				char block = get_block_for_type(s->type);
-				mvprintw(y_start + y, x_start + x, &block);
 			}
-			refresh();
+			//} else {
+			//	char block = get_block_for_type(s->type);
+			//	mvprintw(y_start + y, x_start + x, &block);
+			//}
 		}
+		redraw_screen();
 		refresh();
 		usleep(200000);
 	}
