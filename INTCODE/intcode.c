@@ -143,7 +143,7 @@ long doFunction()
 				instructionPtr+=2;
 				break;
 			case 4 :
-				if (engNo != -1) fprintf(stderr, "%d: ENGINE %d:", getpid(), engNo);
+				if (engNo != -1) fprintf(stderr, "%d: ENGINE %d: %ld%c", getpid(), engNo, output, (verbosity ? ' ' : '\n'));
 				if (verbosity) fprintf(stderr, "case 4:\tinstruction: %d,%ld\nopcode 4 output: %ld\n", instruction, arg1, array[arg1]);
 				output = array[arg1];
 				printf("%ld\n", output);
