@@ -79,7 +79,7 @@ void apply_gravity(struct moon_list **l, int m)
 	for (int i = 0; i < (*l)->size; i++) {
 		if (i == m) continue; 
 		struct moon *first = (*l)->moons[m], *second = (*l)->moons[i];
-		struct coord *pos1 = first->position, *pos2 = second->position, *vel1 = first->velocity; // *vel2 = second->velocity;
+		struct coord *pos1 = first->position, *pos2 = second->position, *vel1 = first->velocity;
 		if (_DEBUG) printf("moon BEFORE:\t POS: (%d,%d,%d),\tVEL: (%d,%d,%d)\t", pos1->x, pos1->y, pos1->z, vel1->x, vel1->y, vel1->z);
 		if (_DEBUG) printf("changing its velocity for moon with pos: POS: (%d,%d,%d)\n", pos2->x, pos2->y, pos2->z);
 
@@ -185,7 +185,7 @@ int main()
 	struct hashnode *first = make_hashnode(moon_list);
 	long iter = 0, res = 0;
 	while(1) {
-		if (_DEBUG) printf("hashnode: %p, hash: %lu\n", (void *) first, first->hash);
+		if (_DEBUG) printf("hashnode: %p, hash: %lu,\t iter: %lu\n", (void *) first, first->hash, iter);
 		for (int i = 0; i < moon_list->size; i++) apply_gravity(&moon_list, i);
 		for (int i = 0; i < moon_list->size; i++) apply_velocity(moon_list->moons[i]);
 		iter++;
