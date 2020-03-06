@@ -4,146 +4,146 @@
 #include <math.h>
 
 static char 	*fileName = "./14_input.txt";
-static struct 	equation **stelsel = NULL;
-static int 	stelselSize = 0;
+static struct 	equation **eq_system = NULL;
+static int 	eq_systemSize = 0;
 
-struct ore 
-{
+struct chemical {
 	unsigned long long amount;
-	char *chemical;
+	char *name;
 	int leftovers;
 };
 
-struct equation 
-{ // 2xTYPE = 7xTYPE + 4xTYPE
-	struct ore *leftTerm;
-	struct ore **rightTerms;
+struct equation { // 2xTYPE = 7xTYPE + 4xTYPE
+	struct chemical *leftTerm;
+	struct chemical **rightTerms;
 	int rightArgCnt;
 };
 
-void printOre(struct ore *ore, int withNewline) 
+void printOre(struct chemical *chemical, int withNewline) 
 {
-	withNewline ? printf("%lli%s\n", ore->amount, ore->chemical) : printf("%llix%s", ore->amount, ore->chemical); 
+	withNewline ? printf("%lli%s\n", chemical->amount, chemical->name) : printf("%llix%s", chemical->amount, chemical->name); 
 }
 
-void printVgl(struct equation *vgl) 
+void printVgl(struct equation *eq) 
 {
-	printOre(vgl->leftTerm, 0);
+	printOre(eq->leftTerm, 0);
 	printf(" = ");
-	for (int j = 0; j < vgl->rightArgCnt; j++) {
-		printOre(vgl->rightTerms[j], 0);
-		j == vgl->rightArgCnt -1 ? printf("\n") : printf(" + ");
+	for (int j = 0; j < eq->rightArgCnt; j++) {
+		printOre(eq->rightTerms[j], 0);
+		j == eq->rightArgCnt -1 ? printf("\n") : printf(" + ");
 	}
 }
 
-void vglMultiply(struct equation *vgl, int num) 
+void eqMultiply(struct equation *eq, int num) 
 {
-	vgl->leftTerm->amount *= num;
-	for (int i = 0; i < vgl->rightArgCnt; i++) {
-		vgl->rightTerms[i]->amount *= num;
+	eq->leftTerm->amount *= num;
+	for (int i = 0; i < eq->rightArgCnt; i++) {
+		eq->rightTerms[i]->amount *= num;
 	}
 }
 
-void vglDivide(struct equation *vgl, int num) 
+void eqDivide(struct equation *eq, int num) 
 {
-	vgl->leftTerm->amount /= num;
-	for (int i = 0; i < vgl->rightArgCnt; i++) {
-		vgl->rightTerms[i]->amount = ceil((double) vgl->rightTerms[i]->amount / (double) num);
+	eq->leftTerm->amount /= num;
+	for (int i = 0; i < eq->rightArgCnt; i++) {
+		eq->rightTerms[i]->amount = ceil((double) eq->rightTerms[i]->amount / (double) num);
 	}
 }
 
-void deleteOrefromVgl(struct equation *vgl, char *delet) 
+void deleteOrefromVgl(struct equation *eq, char *delet) 
 {
-	for (int i = 0; i < vgl->rightArgCnt; i++) {
-		if (strcmp(vgl->rightTerms[i]->chemical, delet) == 0) {
-			vgl->rightArgCnt -= 1;
-			vgl->rightTerms[i] = vgl->rightTerms[vgl->rightArgCnt];
-			vgl->rightTerms[vgl->rightArgCnt] = NULL;
+	for (int i = 0; i < eq->rightArgCnt; i++) {
+		if (strcmp(eq->rightTerms[i]->name, delet) == 0) {
+			eq->rightArgCnt -= 1;
+			eq->rightTerms[i] = eq->rightTerms[eq->rightArgCnt];
+			eq->rightTerms[eq->rightArgCnt] = NULL;
 		}
 	}
 }
 
-struct ore *createOre(int amount, char *name)
+struct chemical *createOre(int amount, char *name)
 {
-	struct ore *newOre = calloc(1, sizeof(struct ore));
+	struct chemical *newOre = calloc(1, sizeof(struct chemical));
 	int len = strlen(name);
 	if (name[len-1] == ',') name[len-1] = '\0';
 	newOre->amount = amount;
 	newOre->leftovers = 0;
-	newOre->chemical = strdup(name);
+	newOre->name = strdup(name);
 	return newOre;
 }
 
-void concatOres(struct equation *vgl, struct equation *toAdd) 
+void concatOres(struct equation *eq, struct equation *toAdd) 
 {
 	for (int i = 0; i < toAdd->rightArgCnt; i++) {
 		int alreadyPresent = 0;
-		for (int x = 0; x < vgl->rightArgCnt; x++) {
-			if (strcmp(vgl->rightTerms[x]->chemical, toAdd->rightTerms[i]->chemical) == 0) {
+		for (int x = 0; x < eq->rightArgCnt; x++) {
+			if (strcmp(eq->rightTerms[x]->name, toAdd->rightTerms[i]->name) == 0) {
 				alreadyPresent = 1;
-				vgl->rightTerms[x]->amount += toAdd->rightTerms[i]->amount;
+				eq->rightTerms[x]->amount += toAdd->rightTerms[i]->amount;
 				break;
 			}
 		}
 		if (!alreadyPresent) {
-			vgl->rightArgCnt = vgl->rightArgCnt +1;
-			vgl->rightTerms = (struct ore **) realloc(vgl->rightTerms, vgl->rightArgCnt * sizeof(struct ore *));
-			vgl->rightTerms[vgl->rightArgCnt-1] = createOre(toAdd->rightTerms[i]->amount, toAdd->rightTerms[i]->chemical);
+			eq->rightArgCnt = eq->rightArgCnt +1;
+			eq->rightTerms = (struct chemical **) realloc(eq->rightTerms, eq->rightArgCnt * sizeof(struct chemical *));
+			eq->rightTerms[eq->rightArgCnt-1] = createOre(toAdd->rightTerms[i]->amount, toAdd->rightTerms[i]->name);
 		}
 	}
 }
 
-void addToVgl(struct equation *vgl, struct equation *vglToAdd, int i)
+void addToVgl(struct equation *eq, struct equation *eqToAdd, int i)
 {
-	struct ore *ore_in_vgl = vgl->rightTerms[i];
-	int amt_in_vgl = ore_in_vgl->amount; 
-	int chemical_amt = vglToAdd->leftTerm->amount;
-	int mod = amt_in_vgl % chemical_amt;
-	int amount = mod == 0 ? amt_in_vgl / chemical_amt : ( amt_in_vgl / chemical_amt ) + 1;
+	struct chemical *chemical_in_eq = eq->rightTerms[i];
+	int amt_in_eq = chemical_in_eq->amount; 
+	int name_amt = eqToAdd->leftTerm->amount;
+	int mod = amt_in_eq % name_amt;
+	int amount = mod == 0 ? amt_in_eq / name_amt : ( amt_in_eq / name_amt ) + 1;
+
+	if (mod) eqToAdd->leftTerm->leftovers = name_amt - mod;
 	
-	vglMultiply(vglToAdd, amount);
-	printf("\t\t"); printVgl(vgl); printf("\t+ \t"); printVgl(vglToAdd);
-	deleteOrefromVgl(vgl, ore_in_vgl->chemical);
-	concatOres(vgl, vglToAdd);
-	vglDivide(vglToAdd, amount);
+	eqMultiply(eqToAdd, amount);
+	printf("\t\t"); printVgl(eq); printf("\t+ \t"); printVgl(eqToAdd); printf("\t\tleft: %d\n", eqToAdd->leftTerm->leftovers);
+	deleteOrefromVgl(eq, chemical_in_eq->name);
+	concatOres(eq, eqToAdd);
+	eqDivide(eqToAdd, amount);
 }
 
-struct equation *findVgl(char *chemical)
+struct equation *findVgl(char *name)
 {
-	for (int i = 0; i < stelselSize; i++) {
-		if (strcmp(stelsel[i]->leftTerm->chemical, chemical) == 0) return stelsel[i];
+	for (int i = 0; i < eq_systemSize; i++) {
+		if (strcmp(eq_system[i]->leftTerm->name, name) == 0) return eq_system[i];
 	}
 	return NULL;
 }
 
-void addVgl(struct ore *main, struct ore **list, int listSize) 
+void addVgl(struct chemical *main, struct chemical **list, int listSize) 
 {
-	stelselSize++;
-	if (stelsel == NULL) stelsel = calloc(1, sizeof(struct equation *));
-	else stelsel = (struct equation **) realloc(stelsel, stelselSize * sizeof(struct equation *));
-	stelsel[stelselSize-1] = malloc(sizeof(struct equation));
-	stelsel[stelselSize-1]->leftTerm = main;
-	stelsel[stelselSize-1]->rightTerms = list;
-	stelsel[stelselSize-1]->rightArgCnt = listSize;
+	eq_systemSize++;
+	if (eq_system == NULL) eq_system = calloc(1, sizeof(struct equation *));
+	else eq_system = (struct equation **) realloc(eq_system, eq_systemSize * sizeof(struct equation *));
+	eq_system[eq_systemSize-1] = malloc(sizeof(struct equation));
+	eq_system[eq_systemSize-1]->leftTerm = main;
+	eq_system[eq_systemSize-1]->rightTerms = list;
+	eq_system[eq_systemSize-1]->rightArgCnt = listSize;
 }
 
 void loadData() 
 {
 	FILE *file = fopen(fileName, "r");
-	char oreAmount[10], oreName[10];
-	struct ore **list = NULL; int rightArgCnt = 0;
-	while (fscanf(file, "%s", oreAmount)) {
+	char chemicalAmount[10], chemicalName[10];
+	struct chemical **list = NULL; int rightArgCnt = 0;
+	while (fscanf(file, "%s", chemicalAmount)) {
 		if(feof(file)) break;
-		if(strcmp(oreAmount, "=>") == 0) {
-			fscanf(file, "%s%s", oreAmount, oreName);
-			struct ore *main = createOre(atoi(oreAmount), oreName);
+		if(strcmp(chemicalAmount, "=>") == 0) {
+			fscanf(file, "%s%s", chemicalAmount, chemicalName);
+			struct chemical *main = createOre(atoi(chemicalAmount), chemicalName);
 			addVgl(main, list, rightArgCnt);
 			list = NULL; rightArgCnt = 0;
 		} else {
-			fscanf(file, "%s", oreName);
-			struct ore *newOre = createOre(atoi(oreAmount), oreName);
+			fscanf(file, "%s", chemicalName);
+			struct chemical *newOre = createOre(atoi(chemicalAmount), chemicalName);
 			rightArgCnt++;
-			list = (struct ore **) realloc(list, rightArgCnt * sizeof(struct ore *));
+			list = (struct chemical **) realloc(list, rightArgCnt * sizeof(struct chemical *));
 			list[rightArgCnt-1] = newOre;
 		}
 	}
@@ -157,8 +157,8 @@ int main()
 	while (1) {
 		int somethingHappened = 0;
 		for (int i = 0; i < masterVgl->rightArgCnt; i++) {
-			struct equation *tmp = findVgl(masterVgl->rightTerms[i]->chemical);
-			if (findVgl(tmp->rightTerms[0]->chemical) != NULL) { // ore
+			struct equation *tmp = findVgl(masterVgl->rightTerms[i]->name);
+			if (findVgl(tmp->rightTerms[0]->name) != NULL) { // chemical
 				somethingHappened = 1;
 				printf("next addition ==============================\n");
 				addToVgl(masterVgl, tmp, i);
@@ -171,20 +171,20 @@ int main()
 	}
 
 	printVgl(masterVgl);
-	vglDivide(masterVgl, masterVgl->leftTerm->amount);
+	eqDivide(masterVgl, masterVgl->leftTerm->amount);
 	printVgl(masterVgl);
 	int total = 0;
 	for (int i = 0; i < masterVgl->rightArgCnt; i++) {
-		struct equation *base_vgl = findVgl(masterVgl->rightTerms[i]->chemical);
-		int base_amount = base_vgl->leftTerm->amount;
-		int ore_amount = base_vgl->rightTerms[0]->amount;
+		struct equation *base_eq = findVgl(masterVgl->rightTerms[i]->name);
+		int base_amount = base_eq->leftTerm->amount;
+		int chemical_amount = base_eq->rightTerms[0]->amount;
 		int master_amount = masterVgl->rightTerms[i]->amount;
 		int rounding_addition = master_amount % base_amount ? (base_amount - (master_amount % base_amount)) : 0;
 		int rounded_amount = master_amount + rounding_addition;
-		rounded_amount /= base_vgl->leftTerm->amount;
-		int amountOfOre = rounded_amount * ore_amount;
-		printf("rounded amount: %d\tamount of ore: %d\t", rounded_amount, amountOfOre);
-		printVgl(base_vgl);
+		rounded_amount /= base_eq->leftTerm->amount;
+		int amountOfOre = rounded_amount * chemical_amount;
+		printf("rounded amount: %d\tamount of chemical: %d\t", rounded_amount, amountOfOre);
+		printVgl(base_eq);
 		total += amountOfOre;
 
 	}
