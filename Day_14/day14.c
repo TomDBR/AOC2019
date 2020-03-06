@@ -94,7 +94,15 @@ void concatOres(struct equation *eq, struct equation *toAdd)
 void addToVgl(struct equation *eq, struct equation *eqToAdd, int i)
 {
 	struct chemical *chemical_in_eq = eq->rightTerms[i];
-	int amt_in_eq = chemical_in_eq->amount; 
+	int amt_in_eq = chemical_in_eq->amount - eqToAdd->leftTerm->leftovers;
+
+	if (amt_in_eq < 0) {
+		deleteOrefromVgl(eq, chemical_in_eq->name);
+		eqToAdd->leftTerm->leftovers -= chemical_in_eq->amount;
+		return;
+	} else {
+		eqToAdd->leftTerm->leftovers = 0;
+	}
 	int name_amt = eqToAdd->leftTerm->amount;
 	int mod = amt_in_eq % name_amt;
 	int amount = mod == 0 ? amt_in_eq / name_amt : ( amt_in_eq / name_amt ) + 1;
