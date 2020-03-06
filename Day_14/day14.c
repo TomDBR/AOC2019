@@ -10,7 +10,8 @@ static int 	stelselSize = 0;
 struct ore 
 {
 	unsigned long long amount;
-	char *type;
+	char *chemical;
+	int leftovers;
 };
 
 struct equation 
@@ -22,7 +23,7 @@ struct equation
 
 void printOre(struct ore *ore, int withNewline) 
 {
-	withNewline ? printf("%lli%s\n", ore->amount, ore->type) : printf("%llix%s", ore->amount, ore->type); 
+	withNewline ? printf("%lli%s\n", ore->amount, ore->chemical) : printf("%llix%s", ore->amount, ore->chemical); 
 }
 
 void printVgl(struct equation *vgl) 
@@ -33,34 +34,6 @@ void printVgl(struct equation *vgl)
 		printOre(vgl->rightTerms[j], 0);
 		j == vgl->rightArgCnt -1 ? printf("\n") : printf(" + ");
 	}
-}
-
-void swap(int *a, int *b)
-{
-	int tmp = *a;
-	*a = *b;
-	*b = tmp;
-}
-
-int greatestCommonDivisor(int x, int y) 
-{
-	// Euclidean algorithm!
-	x = abs(x);
-	y = abs(y);
-	if (x == 0 || y == 0) return 1;
-	int biggestValue = x >= y ? x : y;
-	int smallestValue = x < y ? x : y;
-	while(1) {
-		int count = 0;
-		while (biggestValue >= smallestValue) {
-			biggestValue -= smallestValue;
-			count++;
-		}
-		if (biggestValue == 0) return smallestValue;
-		else if (biggestValue < 1) return 0;
-		swap(&biggestValue, &smallestValue);
-	}
-	return 1;
 }
 
 void vglMultiply(struct equation *vgl, int num) 
@@ -82,7 +55,7 @@ void vglDivide(struct equation *vgl, int num)
 void deleteOrefromVgl(struct equation *vgl, char *delet) 
 {
 	for (int i = 0; i < vgl->rightArgCnt; i++) {
-		if (strcmp(vgl->rightTerms[i]->type, delet) == 0) {
+		if (strcmp(vgl->rightTerms[i]->chemical, delet) == 0) {
 			vgl->rightArgCnt -= 1;
 			vgl->rightTerms[i] = vgl->rightTerms[vgl->rightArgCnt];
 			vgl->rightTerms[vgl->rightArgCnt] = NULL;
@@ -96,7 +69,8 @@ struct ore *createOre(int amount, char *name)
 	int len = strlen(name);
 	if (name[len-1] == ',') name[len-1] = '\0';
 	newOre->amount = amount;
-	newOre->type = strdup(name);
+	newOre->leftovers = 0;
+	newOre->chemical = strdup(name);
 	return newOre;
 }
 
@@ -105,7 +79,7 @@ void concatOres(struct equation *vgl, struct equation *toAdd)
 	for (int i = 0; i < toAdd->rightArgCnt; i++) {
 		int alreadyPresent = 0;
 		for (int x = 0; x < vgl->rightArgCnt; x++) {
-			if (strcmp(vgl->rightTerms[x]->type, toAdd->rightTerms[i]->type) == 0) {
+			if (strcmp(vgl->rightTerms[x]->chemical, toAdd->rightTerms[i]->chemical) == 0) {
 				alreadyPresent = 1;
 				vgl->rightTerms[x]->amount += toAdd->rightTerms[i]->amount;
 				break;
@@ -114,37 +88,30 @@ void concatOres(struct equation *vgl, struct equation *toAdd)
 		if (!alreadyPresent) {
 			vgl->rightArgCnt = vgl->rightArgCnt +1;
 			vgl->rightTerms = (struct ore **) realloc(vgl->rightTerms, vgl->rightArgCnt * sizeof(struct ore *));
-			vgl->rightTerms[vgl->rightArgCnt-1] = createOre(toAdd->rightTerms[i]->amount, toAdd->rightTerms[i]->type);
+			vgl->rightTerms[vgl->rightArgCnt-1] = createOre(toAdd->rightTerms[i]->amount, toAdd->rightTerms[i]->chemical);
 		}
 	}
 }
 
-void addToVgl(struct equation *vgl, struct equation *vglToAdd)
+void addToVgl(struct equation *vgl, struct equation *vglToAdd, int i)
 {
-	for (int i = 0; i < vgl->rightArgCnt; i++) {
-		struct ore *tmp = vgl->rightTerms[i];
-		if (strcmp(tmp->type, vglToAdd->leftTerm->type) == 0) {
-			int gcd 	= greatestCommonDivisor(tmp->amount, vglToAdd->leftTerm->amount);
-			int vglAmt 	= vglToAdd->leftTerm->amount / gcd;
-			int toAddAmt 	= tmp->amount / gcd;
-			vglMultiply(vglToAdd, toAddAmt);
-			vglMultiply(vgl, vglAmt);
-			printf("\t\t");
-			printVgl(vgl); 
-			printf("\t+ \t");
-			printVgl(vglToAdd);
-			deleteOrefromVgl(vgl, tmp->type);
-			concatOres(vgl, vglToAdd);
-			vglDivide(vglToAdd, toAddAmt);
-			break;
-		}
-	}
+	struct ore *ore_in_vgl = vgl->rightTerms[i];
+	int amt_in_vgl = ore_in_vgl->amount; 
+	int chemical_amt = vglToAdd->leftTerm->amount;
+	int mod = amt_in_vgl % chemical_amt;
+	int amount = mod == 0 ? amt_in_vgl / chemical_amt : ( amt_in_vgl / chemical_amt ) + 1;
+	
+	vglMultiply(vglToAdd, amount);
+	printf("\t\t"); printVgl(vgl); printf("\t+ \t"); printVgl(vglToAdd);
+	deleteOrefromVgl(vgl, ore_in_vgl->chemical);
+	concatOres(vgl, vglToAdd);
+	vglDivide(vglToAdd, amount);
 }
 
-struct equation *findVgl(char *type)
+struct equation *findVgl(char *chemical)
 {
 	for (int i = 0; i < stelselSize; i++) {
-		if (strcmp(stelsel[i]->leftTerm->type, type) == 0) return stelsel[i];
+		if (strcmp(stelsel[i]->leftTerm->chemical, chemical) == 0) return stelsel[i];
 	}
 	return NULL;
 }
@@ -183,18 +150,18 @@ void loadData()
 	fclose(file);
 }
 
-int main(int argc, char *argv[]) 
+int main()
 {
 	loadData();
 	struct equation *masterVgl = findVgl("FUEL");
 	while (1) {
 		int somethingHappened = 0;
 		for (int i = 0; i < masterVgl->rightArgCnt; i++) {
-			struct equation *tmp = findVgl(masterVgl->rightTerms[i]->type);
-			if (findVgl(tmp->rightTerms[0]->type) != NULL) { // ore
+			struct equation *tmp = findVgl(masterVgl->rightTerms[i]->chemical);
+			if (findVgl(tmp->rightTerms[0]->chemical) != NULL) { // ore
 				somethingHappened = 1;
 				printf("next addition ==============================\n");
-				addToVgl(masterVgl, tmp);
+				addToVgl(masterVgl, tmp, i);
 				printf("\t------------------------------------\n");
 				printf("\t=\t");
 				printVgl(masterVgl);
@@ -208,12 +175,16 @@ int main(int argc, char *argv[])
 	printVgl(masterVgl);
 	int total = 0;
 	for (int i = 0; i < masterVgl->rightArgCnt; i++) {
-		struct equation *tmp = findVgl(masterVgl->rightTerms[i]->type);
-		int roundedAmt = ceil((double) masterVgl->rightTerms[i]->amount / (double) tmp->leftTerm->amount);
-		printf("rounded amount: %d\t", roundedAmt);
-		int amountOfOre = roundedAmt * tmp->rightTerms[0]->amount;
-		printf("amount of ore: %d\t", amountOfOre);
-		printVgl(tmp);
+		struct equation *base_vgl = findVgl(masterVgl->rightTerms[i]->chemical);
+		int base_amount = base_vgl->leftTerm->amount;
+		int ore_amount = base_vgl->rightTerms[0]->amount;
+		int master_amount = masterVgl->rightTerms[i]->amount;
+		int rounding_addition = master_amount % base_amount ? (base_amount - (master_amount % base_amount)) : 0;
+		int rounded_amount = master_amount + rounding_addition;
+		rounded_amount /= base_vgl->leftTerm->amount;
+		int amountOfOre = rounded_amount * ore_amount;
+		printf("rounded amount: %d\tamount of ore: %d\t", rounded_amount, amountOfOre);
+		printVgl(base_vgl);
 		total += amountOfOre;
 
 	}
