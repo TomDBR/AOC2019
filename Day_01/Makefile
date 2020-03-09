@@ -6,6 +6,7 @@ ifeq ($(DEBUG),1)
 endif
 
 SRC 		:= $(wildcard *.c)
+SRC 		+= ../UTILS/util.c
 OBJ 		:= $(SRC:.c=.o)
 
 VALG 		:= $(wildcard vgcore.*)
