@@ -34,26 +34,26 @@ void printVgl(struct equation *eq)
 	}
 }
 
-void eqMultiply(struct equation *eq, int num) 
+void eq_operation(struct equation *eq, char operation, int operator) 
 {
-	eq->leftTerm->amount *= num;
-	for (int i = 0; i < eq->rightArgCnt; i++) {
-		eq->rightTerms[i]->amount *= num;
+	switch (operation) {
+		case '*':
+			eq->leftTerm->amount *= operator;
+			for (int i = 0; i < eq->rightArgCnt; i++) eq->rightTerms[i]->amount *= operator;
+			break;
+		case '/':
+			eq->leftTerm->amount /= operator;
+			for (int i = 0; i < eq->rightArgCnt; i++) eq->rightTerms[i]->amount /= operator;
+			break;
+		default:
+			fprintf(stderr, "Invalid operation!\n");
 	}
 }
 
-void eqDivide(struct equation *eq, int num) 
-{
-	eq->leftTerm->amount /= num;
-	for (int i = 0; i < eq->rightArgCnt; i++) {
-		eq->rightTerms[i]->amount = ceil((double) eq->rightTerms[i]->amount / (double) num);
-	}
-}
-
-void deleteOrefromVgl(struct equation *eq, char *delet) 
+void remove_chemical_from_equation(struct equation *eq, char *chemical_name) 
 {
 	for (int i = 0; i < eq->rightArgCnt; i++) {
-		if (strcmp(eq->rightTerms[i]->name, delet) == 0) {
+		if (strcmp(eq->rightTerms[i]->name, chemical_name) == 0) {
 			eq->rightArgCnt -= 1;
 			eq->rightTerms[i] = eq->rightTerms[eq->rightArgCnt];
 			eq->rightTerms[eq->rightArgCnt] = NULL;
@@ -96,11 +96,11 @@ void addToVgl(struct equation *eq, struct equation *eqToAdd, int i)
 	struct chemical *chemical_in_eq = eq->rightTerms[i];
 	int amt_in_eq = chemical_in_eq->amount - eqToAdd->leftTerm->leftovers;
 
-	if (amt_in_eq < 0) {
-		deleteOrefromVgl(eq, chemical_in_eq->name);
+	if (amt_in_eq < 0) { // chemical_in_eq was fully provided by earlier created leftovers.
+		remove_chemical_from_equation(eq, chemical_in_eq->name);
 		eqToAdd->leftTerm->leftovers -= chemical_in_eq->amount;
 		return;
-	} else {
+	} else { // all leftovers were used
 		eqToAdd->leftTerm->leftovers = 0;
 	}
 	int name_amt = eqToAdd->leftTerm->amount;
@@ -109,11 +109,11 @@ void addToVgl(struct equation *eq, struct equation *eqToAdd, int i)
 
 	if (mod) eqToAdd->leftTerm->leftovers = name_amt - mod;
 	
-	eqMultiply(eqToAdd, amount);
+	eq_operation(eqToAdd, '*', amount);
 	printf("\t\t"); printVgl(eq); printf("\t+ \t"); printVgl(eqToAdd); printf("\t\tleft: %d\n", eqToAdd->leftTerm->leftovers);
-	deleteOrefromVgl(eq, chemical_in_eq->name);
+	remove_chemical_from_equation(eq, chemical_in_eq->name);
 	concatOres(eq, eqToAdd);
-	eqDivide(eqToAdd, amount);
+	eq_operation(eqToAdd, '/', amount);
 }
 
 struct equation *findVgl(char *name)
@@ -178,8 +178,6 @@ int main()
 		if (!somethingHappened) break;
 	}
 
-	printVgl(masterVgl);
-	eqDivide(masterVgl, masterVgl->leftTerm->amount);
 	printVgl(masterVgl);
 	int total = 0;
 	for (int i = 0; i < masterVgl->rightArgCnt; i++) {
