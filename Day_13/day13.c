@@ -12,6 +12,7 @@ struct output **tiles = NULL;
 int tiles_size = 0;
 char *cmd[] = { "intcode", "./input.txt", "-1", "0", NULL };
 int width = 0, height = 0;
+int max_y = 0, max_x = 0;
 int score = 0;
 
 struct output {
@@ -84,20 +85,15 @@ int isScore(struct output *s)
 
 void redraw_screen() 
 {
-	int max_y = 0, max_x = 0;
-	getmaxyx(stdscr, max_y, max_x);
 	int x_start = ( max_x / 2 ) - ( width / 2 );
 	int y_start = ( max_y / 2 ) - ( height / 2 );
 
-	noecho();
-	curs_set(FALSE); // hide cursor
-	nocbreak();
 	for (int i = 0; i < tiles_size; i++) {
 		int x = tiles[i]->x, y = tiles[i]->y, type = tiles[i]->type;
 		char block = get_block_for_type(type);
-		mvprintw(y_start + y, x_start + x, &block);
-		refresh();
+		mvprintw(y_start + y, x_start + x, "%c", block);
 	}
+	wrefresh(stdscr);
 }
 
 int query_machine(FILE *f, int *x, int *y, int *type) {
@@ -115,16 +111,21 @@ int get_move() {
 	return 0;
 }
 
+void calcminmax() {
+	getmaxyx(stdscr, max_y, max_x);
+}
+
 int main() 
 {
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGWINCH, calcminmax);
 	// Run program
 	process_t machine = process(cmd);
 	// use poll to query whether there's any data to be read before using scanf
 	struct pollfd poll_f = { machine.fd_write, POLL_IN|POLL_PRI, 0 };
 	FILE *f;
 	int x, y, type; // used to save the output of the intcode program in
-	int max_y = 0, max_x = 0; // used to determine size of screen for ncurses
+	//int max_y = 0, max_x = 0; // used to determine size of screen for ncurses
 
  	if (!(f = fdopen(machine.fd_write, "r"))) 
 		die("Failed to open file descriptor!\n");
