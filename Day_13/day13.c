@@ -46,6 +46,7 @@ int findTile(int x, int y)
 // create new tile if it doesn't exist, otherwise update its type
 struct output *assignTile(int x, int y, int type)
 {
+	//printf("Tiles size is: %d (%d-%d)\n", tiles_size, width, height);
 	int i = 0;
 	if ((i = findTile(x, y)) != -1) {
 		tiles[i]->type = type;
@@ -103,12 +104,18 @@ int query_machine(FILE *f, int *x, int *y, int *type) {
 }
 
 int get_move() {
+	int ret = 0;
 	struct output *ball = find_type(4);
 	struct output *paddle = find_type(3);
-	if (!ball || !paddle) die("something went wrong!");
-	if (paddle->x < ball->x) return 1;
-	if (paddle->x > ball->x) return -1;
-	return 0;
+	if (!ball || !paddle) {
+		printf("ball: %p, paddle: %p\n", (void *)ball, (void *)paddle);
+		die("something went wrong!");
+	}
+	return 1;
+	if (paddle->x < ball->x) ret = 1;
+	if (paddle->x > ball->x) ret = -1;
+	//printf("returning.. %d\n", ret);
+	return ret;
 }
 
 void calcminmax() {
@@ -117,12 +124,14 @@ void calcminmax() {
 
 int main() 
 {
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGWINCH, calcminmax);
+	//signal(SIGPIPE, SIG_IGN);
+	//signal(SIGWINCH, calcminmax);
 	// Run program
 	process_t machine = process(cmd);
 	// use poll to query whether there's any data to be read before using scanf
-	struct pollfd poll_f = { machine.fd_write, POLL_IN|POLL_PRI, 0 };
+	struct pollfd poll_f = { machine.fd_write, POLL_IN, 0 };
+	struct pollfd *arr = malloc(sizeof(struct pollfd));
+	arr[0] = poll_f;
 	FILE *f;
 	int x, y, type; // used to save the output of the intcode program in
 	//int max_y = 0, max_x = 0; // used to determine size of screen for ncurses
@@ -145,42 +154,70 @@ int main()
 
 	// PART 2: PLAY THE GAME
 	// Draw a screen
-	initscr();
-	noecho();
-	curs_set(FALSE); // hide cursor
-	cbreak();
+	//initscr();
+	//noecho();
+	//curs_set(FALSE); // hide cursor
+	//cbreak();
 
 	// center the screen
-	getmaxyx(stdscr, max_y, max_x);
-	redraw_screen();
+	//getmaxyx(stdscr, max_y, max_x);
+	//redraw_screen();
 
 	while((waitpid(machine.pid, NULL, WNOHANG)) == 0) {
 		int res = get_move(), score = 0;
-		mvprintw(max_y - 1, 0, "MOVING TO THE %s!", abs(res) == 1 ? res == 1 ? "RIGHT": "LEFT" : "NOT");
-		mvprintw(max_y - 2, 0, "Current score: %d", score);
+		//mvprintw(max_y - 1, 0, "MOVING TO THE %s!", abs(res) == 1 ? res == 1 ? "RIGHT": "LEFT" : "NOT");
+		//mvprintw(max_y - 2, 0, "Current score: %d", score);
 		dprintf(machine.fd_read, "%d\n", res);
-		for (int i = 0; i < (abs(res) ? 4 : 2); i++) {
-			query_machine(f, &x, &y, &type);
-			assignTile(x, y, type);
-		}
-		if (poll(&poll_f, 1, 100)) {
-			query_machine(f, &x, &y, &type);
-			switch (type) {
-				case 0:
-					//printf("SCORE: %d, YOU DIED!\n", type);
-					mvprintw(max_y - 3, 0, "SCORE: %d, YOU DIED!\n", type);
-					break;
-				default:
-					score = type;
-					mvprintw(max_y - 3, 0, "SCORE: %d\n", score);
+		//for (int i = 0; i < (abs(res) ? 4 : 2); i++) {
+			//query_machine(f, &x, &y, &type);
+			//assignTile(x, y, type);
+		//}
+		int polret = 0, total = 0, breakout = 0;
+		while (!breakout) {
+			polret = poll(&poll_f, 1, 300);
+			//printf("polret: %d, revents: %p\n", polret, poll_f.revents);
+			if (poll_f.revents == POLL_IN) {
+				query_machine(f, &x, &y, &type);
+				printf("(%p)\tx: %d, y: %d, type: %d\n", poll_f.revents, x, y, type);
+			} else if (!poll_f.revents) {
+				printf("DONT read!\n");
+				if (total % 2 == 0) break;
+				else {
+					int fscanfret = query_machine(f, &x, &y, &type);
+					printf("total: %d, x: %d, y: %d, type: %d, fscanfret: %d\n", total,x, y, type, fscanfret);
+					//continue;
+				}
+			} else if ((poll_f.revents & POLL_HUP) == 0) {
+				printf("received hangup!\n");
+				close(machine.fd_write); close(machine.fd_read);
+				break;
+			}
+			if (x == -1 && y == 0) {
+				score = type;
+				//printf("current score: %d\n", score);
+				switch (type) {
+					case 0:
+						printf("SCORE: %d, YOU DIED!\n", score);
+						breakout = 1;
+						//mvprintw(max_y - 3, 0, "SCORE: %d, YOU DIED!\n", score);
+						break;
+					default:
+						printf("SCORE IS: %d\n", score);
+						//mvprintw(max_y - 3, 0, "SCORE: %d\n", score);
+				}
+			} else {
+				total++;
+				assignTile(x, y, type);
+				//redraw_screen();
 			}
 		}
-		redraw_screen();
-		usleep(10000);
+		//printf("polret is now: %d\n", polret);
+		usleep(90000);
+		//usleep(90000);
 	}
-	usleep(1000000);
-	clear();
-	endwin();
+	//usleep(1000000);
+	//clear();
+	//endwin();
 	wait(NULL);
 	return 0;
 }
