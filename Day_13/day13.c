@@ -6,6 +6,7 @@
 #include "../UTILS/shell_cmd.h"
 #include "../UTILS/util.h"
 #include <poll.h>
+#include <string.h>
 
 int verbosity = 0;
 struct output **tiles = NULL;
@@ -78,9 +79,9 @@ char get_block_for_type(int type)
 	return block;
 }
 
-int isScore(struct output *s)
+int isScore(int x, int y)
 {
-	return (s->x == -1 && s->y == 0) ? 1 : 0;
+	return (x == -1 && y == 0) ? 1 : 0;
 }
 
 void redraw_screen() 
@@ -96,42 +97,59 @@ void redraw_screen()
 	wrefresh(stdscr);
 }
 
-int query_machine(FILE *f, int *x, int *y, int *type) {
-	int ret = fscanf(f, "%d\n%d\n%d", x, y, type);
-	if (verbosity) printf("x: %d, y: %d, type: %d\n", *x, *y, *type);
-	return ret == 3 ? 1: 0;
+void query_machine(int fd, int *x, int *y, int *type) 
+{
+	char buf[20], c;
+	bzero(buf, 20);
+	int newlineCnt = 0, bufIdx = 0;
+	while (newlineCnt < 3 && read(fd, &c, 1) == 1) {
+		if (c == '\n') {
+			switch (newlineCnt) {
+				case 0:
+					*x = atoi(buf); break;
+				case 1:
+					*y = atoi(buf); break;
+				case 2:
+					*type = atoi(buf); break;
+			}
+			newlineCnt++;
+			bufIdx = 0;
+			bzero(buf, 20);
+		} else {
+			buf[bufIdx++] = c;
+		}
+	}
+	if (verbosity) printf("(%d,%d) => TYPE %d\n", *x, *y, *type);
 }
 
-int get_move() {
-	struct output *ball = find_type(4);
-	struct output *paddle = find_type(3);
-	if (!ball || !paddle) die("something went wrong!");
+int get_move() 
+{
+	struct output *ball, *paddle;
+	if (!(ball = find_type(4)) || !(paddle = find_type(3)))
+		die("The ball and/or paddle disappeared!");
 	if (paddle->x < ball->x) return 1;
 	if (paddle->x > ball->x) return -1;
 	return 0;
 }
 
-void calcminmax() {
+void recenter_window() 
+{
 	getmaxyx(stdscr, max_y, max_x);
+	clear();
+	redraw_screen();
 }
 
 int main() 
 {
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGWINCH, calcminmax);
-	// Run program
+	signal(SIGWINCH, recenter_window);
 	process_t machine = process(cmd);
 	// use poll to query whether there's any data to be read before using scanf
-	struct pollfd poll_f = { machine.fd_write, POLL_IN|POLL_PRI, 0 };
-	FILE *f;
+	struct pollfd poll_f = { machine.fd_write, POLLIN, 0 };
 	int x, y, type; // used to save the output of the intcode program in
-	//int max_y = 0, max_x = 0; // used to determine size of screen for ncurses
 
- 	if (!(f = fdopen(machine.fd_write, "r"))) 
-		die("Failed to open file descriptor!\n");
-
-	while (query_machine(f, &x, &y, &type)) {
-		if (x == -1 && y == 0) // when this happens, the program is done drawing and starts accepting input, initial score 0
+	while (poll(&poll_f, 1, 100) > 0 && poll_f.revents & POLLIN) {
+		query_machine(machine.fd_write, &x, &y, &type);
+		if (isScore(x, y)) // when this happens, the program is done drawing and starts accepting input, initial score 0
 			break;
 		assignTile(x, y, type);
 	}
@@ -144,43 +162,30 @@ int main()
 	printf("PART 1:\tAmount of block tiles: %d\n", count);
 
 	// PART 2: PLAY THE GAME
-	// Draw a screen
 	initscr();
 	noecho();
-	curs_set(FALSE); // hide cursor
-	cbreak();
-
-	// center the screen
-	getmaxyx(stdscr, max_y, max_x);
-	redraw_screen();
+	curs_set(FALSE); 
+	recenter_window();
 
 	while((waitpid(machine.pid, NULL, WNOHANG)) == 0) {
-		int res = get_move(), score = 0;
-		mvprintw(max_y - 1, 0, "MOVING TO THE %s!", abs(res) == 1 ? res == 1 ? "RIGHT": "LEFT" : "NOT");
-		mvprintw(max_y - 2, 0, "Current score: %d", score);
-		dprintf(machine.fd_read, "%d\n", res);
-		for (int i = 0; i < (abs(res) ? 4 : 2); i++) {
-			query_machine(f, &x, &y, &type);
-			assignTile(x, y, type);
-		}
-		if (poll(&poll_f, 1, 100)) {
-			query_machine(f, &x, &y, &type);
-			switch (type) {
-				case 0:
-					//printf("SCORE: %d, YOU DIED!\n", type);
-					mvprintw(max_y - 3, 0, "SCORE: %d, YOU DIED!\n", type);
-					break;
-				default:
-					score = type;
-					mvprintw(max_y - 3, 0, "SCORE: %d\n", score);
-			}
+		mvprintw(max_y - 1, 0, "Current score: %d", score);
+		dprintf(machine.fd_read, "%d\n", get_move());
+		while (poll(&poll_f, 1, 10) > 0 && (poll_f.revents & POLLIN)) {
+			query_machine(machine.fd_write, &x, &y, &type);
+			if (isScore(x, y)) 
+				score = type;
+			else
+				assignTile(x, y, type);
 		}
 		redraw_screen();
-		usleep(10000);
 	}
-	usleep(1000000);
 	clear();
 	endwin();
 	wait(NULL);
+	
+	printf("PART 2:\tScore after playing game is: %d\n", type);
+	for (int i = 0; i < tiles_size; i++)
+		free(tiles[i]);
+	free(tiles);
 	return 0;
 }
