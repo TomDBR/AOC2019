@@ -22,15 +22,23 @@ int main() {
 	char c[2] = { ' ', '\0' };
 	int *phase = NULL, *newPhase = NULL, phaseLen = 0;
 	int basePattern[4] = { 0,1,0,-1 };
-	while ((c[0] = fgetc(f)) != EOF) {
-		if (!between((int) c[0], (int) '0', (int) '9')) continue;
-		phase = realloc(phase, ++phaseLen * sizeof(int));
-		phase[phaseLen-1] = atoi(c);
-	}
+	//for (int i = 0; i < 10000; i++) {
+		while ((c[0] = fgetc(f)) != EOF) {
+			if (!between((int) c[0], (int) '0', (int) '9')) continue;
+			phase = realloc(phase, ++phaseLen * sizeof(int));
+			phase[phaseLen-1] = atoi(c);
+		}
+		fseek(f, 0, SEEK_SET);
+	//}
 	newPhase = calloc(phaseLen, sizeof(int));
+	char offset[8]; offset[7] = '\0';
+	for (int i = 0; i < 7; i++) offset[i] = fgetc(f);
+	printf("offset is: %s\n", offset);
 	fclose(f);
 
+
 	for (int i = 0; i < 100; i++) {
+		printf("PHASE %d\n", i+1);
 		for (int j = 0; j < phaseLen; j++) {
 			int *pattern = getPattern(basePattern,j+1);
 			int patternIdx = 1, sizePattern = (j+1) * 4;
